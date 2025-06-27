@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영어 단어 학습 앱 (Week 1-10)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .main-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease;
+        }
+        .btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .btn-active {
+            background-color: #3B82F6 !important;
+            color: white !important;
+            border-color: #3B82F6 !important;
+        }
+        .word-card .details {
+            display: none;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out;
+        }
+        .word-card.expanded .details {
+            display: block;
+            max-height: 500px; /* Adjust as needed */
+            transition: max-height 0.5s ease-in;
+        }
+        .word-card.expanded .summary svg {
+            transform: rotate(180deg);
+        }
+        .summary svg {
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-5xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">영어 단어 학습</h1>
+            <p class="text-gray-600 mt-2">학습할 주차를 선택하고 시작하세요.</p>
+        </header>
+
+        <main class="main-card p-6 md:p-8">
+            <!-- 주차 선택 -->
+            <div id="week-selection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-8">
+                <!-- Week buttons will be dynamically inserted here -->
+            </div>
+
+            <!-- 학습 모드 선택 -->
+            <div id="mode-selection" class="hidden flex-wrap justify-center border-b-2 border-gray-200 pb-6 mb-6 gap-2 md:gap-4">
+                <button data-mode="list" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">전체 단어 보기</button>
+                <button data-mode="test-eng-kor" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">테스트 (영어 → 한글)</button>
+                <button data-mode="test-kor-eng" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">테스트 (한글 → 영어)</button>
+            </div>
+            
+            <!-- 콘텐츠 표시 영역 -->
+            <div id="content-display" class="min-h-[450px]">
+                <div id="initial-message" class="text-center text-gray-500 pt-16">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">학습 시작하기</h3>
+                    <p class="mt-1 text-sm text-gray-500">먼저 학습할 주차를 선택해주세요.</p>
+                </div>
+            </div>
+
+            <!-- 페이지네이션 -->
+            <div id="pagination" class="hidden justify-center items-center mt-6 gap-4">
+                <button id="prev-page" class="btn bg-white py-2 px-4 rounded-lg shadow-md hover:bg-gray-50 text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed">이전</button>
+                <span id="page-info" class="text-gray-700 font-semibold"></span>
+                <button id="next-page" class="btn bg-white py-2 px-4 rounded-lg shadow-md hover:bg-gray-50 text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed">다음</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const wordData = {
+            'week1': [
+                { english: 'square', korean: '정사각형, 광장, 평방, 제곱', pronunciation: '[skweər]', related: 'rectangle 직사각형, pentagon 오각형', synonyms: 'plaza', example: 'There are 64 squares on a chessboard.' },
+                { english: 'infection', korean: '감염, 전염, 전염병', pronunciation: '[infékʃən]', related: 'infect 감염시키다, infectious 전염성의', synonyms: 'contagion, contaminate, contagious', example: 'There is no danger of infection in space without air.' },
+                { english: 'authority', korean: '권위, 권한, 당국', pronunciation: '[əθɔ́ːrəti]', related: 'authorize 권한을 부여하다, authorized 공인된', synonyms: 'domination', example: "There is a conflict between adolescents' desire for independence and parents' authority." },
+                { english: 'exhibit', korean: '전시하다, 전시, 전시물', pronunciation: '[igzíbit]', related: 'exhibition 전시회', synonyms: 'display, exposition', example: "This year there will be numerous events to exhibit Rembrandt's works." },
+                { english: 'limit', korean: '제한, 한계, 제한하다', pronunciation: '[límit]', related: 'limitation 제한, 한계, limited 한정된', synonyms: 'restriction, restrict', example: 'There should be no strict age limit for job applicants.' },
+                { english: 'factor', korean: '요인, 요소', pronunciation: '[fǽktər]', synonyms: 'reason, element', example: 'There seem to be some factors that lead to obesity, including heredity.' },
+                { english: 'support', korean: '지지하다, 지탱하다, 부양하다', pronunciation: '[səpɔ́ːrt]', related: 'supportive 지지하는', synonyms: 'advocate, uphold', example: "There are many citizens who support the government's plan to launch a satellite." },
+                { english: 'distribute', korean: '분배하다, 배포하다', pronunciation: '[distríbjuːt]', related: 'distribution 분배, 분포', synonyms: 'dispense', example: 'Once there lived a kind farmer who distributed his harvest to the poor.' },
+                { english: 'trial', korean: '시험, 시도, 재판, 시련', pronunciation: '[tráiəl]', related: 'try 시도하다, 애쓰다', synonyms: 'test, attempt, lawsuit', example: 'The clinical trial itself on humans has proved a medical breakthrough.' },
+                { english: 'shelter', korean: '피난처, 은신처, 보호하다', pronunciation: '[ʃéltər]', synonyms: 'refuge, shield', example: 'During the war, the subway became a practical shelter from frequent air raids.' },
+                { english: 'guard', korean: '보호하다, 감시하다, 경계, 경호원', pronunciation: '[gɑːrd]', synonyms: 'safeguard', example: 'The location of the crash remains a closely guarded secret.' },
+                { english: 'part', korean: '헤어지다, 갈라지다, 부분', pronunciation: '[pɑːrt]', synonyms: 'separate', antonyms: 'join', example: 'The two boxers parted good friends after the goodwill match.' },
+                { english: 'average', korean: '평균, 평균의, 보통의', pronunciation: '[ǽvəridʒ]', related: 'the standard deviation 표준 편차', synonyms: 'mean, ordinary', example: "On average, an elephant's trunk weighs approximately 100 kilograms." },
+                { english: 'huge', korean: '거대한', pronunciation: '[hjuːdʒ]', related: 'hugeness 거대함', synonyms: 'gigantic', antonyms: 'negligible', example: 'The volume of the huge container measures 10,000 cubic meters.' },
+                { english: 'decent', korean: '품위 있는, 점잖은, 적절한', pronunciation: '[díːsənt]', related: 'decency 품위, 예의 바름', synonyms: 'prestige', antonyms: 'indecent', example: 'He returned to his homeland a decent, honest, hardworking gentleman.' },
+                { english: 'extensive', korean: '광범위한', pronunciation: '[iksténsiv]', related: 'extend 늘리다, extension 연장, extent 정도', synonyms: 'comprehensive', antonyms: 'intensive', example: 'The extensive reforms served as a model for the rest of the Communist world.' },
+                { english: 'swing', korean: '돌다, 흔들리다, 그네', pronunciation: '[swiŋ]', synonyms: 'rotate, sway', example: 'The doors of communication between the two political parties swung open.' },
+                { english: 'fertile', korean: '비옥한, 다산의', pronunciation: '[fə́ːrtl]', related: 'fertility 비옥, 다산, fertilizer 비료, fertilize 비옥하게 하다', synonyms: 'fruitful', antonyms: 'barren, sterile', example: 'On account of the intense sunlight, most fertile land turned useless.' },
+                { english: 'stable', korean: '안정된, 꾸준한, 마구간', pronunciation: '[stéibl]', related: 'stability 안정(성)', synonyms: 'steady', antonyms: 'unstable', example: 'Prices become more stable when supply equals demand.' },
+                { english: 'alert', korean: '방심하지 않는, 경계하는, 기민한', pronunciation: '[əlárt]', synonyms: 'vigilant', example: 'You must stay alert to every sound when driving.' },
+            ],
+            'week2': [
+                { english: 'assure', korean: '확신시키다, 보증하다', pronunciation: '[əʃúər]', related: 'assurance 확신, 보증, assured 확실한, 자신 있는', synonyms: 'convince, confidence, certain, confident', example: 'Her doctor has assured her family that she would be fine.' },
+                { english: 'inquire', korean: '묻다, 문의하다, 조사하다', pronunciation: '[inkwáiər]', related: 'inquiry 문의, 조사, inquisitive 캐묻기 좋아하는', synonyms: 'ask', example: 'He advised me that I would inquire weather conditions of the weather bureau.' },
+                { english: 'persuade', korean: '설득하다', pronunciation: '[pərswéid]', related: 'persuasion 설득, persuasive 설득력 있는', synonyms: 'prevail on', antonyms: 'dissuade', example: 'He tried to persuade them that nuclear power stations were safe.' },
+                { english: 'innocent', korean: '무죄의, 순진한, 순수한', pronunciation: '[ínəsnt]', related: 'innocence 무죄, 결백, 순결', antonyms: 'guilty', example: "The accused is still trying to convince the jury that he's innocent." },
+                { english: 'candidate', korean: '후보자, 지원자', pronunciation: '[kǽndədèit]', related: 'run for ~에 입후보하다', synonyms: 'applicant', example: 'The result showed us that both candidates received an equal number of votes.' },
+                { english: 'spare', korean: '할애하다, 아끼다, 여분의', pronunciation: '[spɛər]', synonyms: 'extra', example: 'He asked me if I could spare him a few minutes.' },
+                { english: 'soar', korean: '치솟다', pronunciation: '[sɔːr]', related: 'soaring 치솟는', synonyms: 'skyrocket', example: 'The teacher told us why the price of fuel had been soaring.' },
+                { english: 'corrupt', korean: '타락한, 타락하다', pronunciation: '[kərápt]', related: 'corruption 타락, 부패', synonyms: 'crooked, deteriorate', antonyms: 'upright, purify, integrity', example: 'The corrupt politicians informed the lobbyist where they would take the bribe.' },
+                { english: 'luxury', korean: '사치, 사치품', pronunciation: '[lʌ́kʃəri]', related: 'luxurious 사치스런, luxuriant 번성한', antonyms: 'necessity, thrifty', example: "She didn't go to college since her father considered education a luxury." },
+                { english: 'current', korean: '현재의, 흐름, 경향', pronunciation: '[kə́ːrənt]', related: 'currency 통화, 화폐', synonyms: 'contemporary, draft, tendency', example: 'Knowing about current events can make us good citizens.' },
+            ],
+            'week3': [
+                { english: 'interest', korean: '관심, 흥미, 이자, 이익', pronunciation: '[íntərist]', related: 'interested 흥미를 가진, interesting 흥미있는', example: "Enya's success has contributed greatly to the current interest in Celtic music." },
+                { english: 'ban', korean: '금지하다, 금지', pronunciation: '[bæn]', synonyms: 'prohibit, prohibition', example: 'Illegal trade in ivory at local markets has been banned since 1990.' },
+                { english: 'literary', korean: '문학의, 문어체의', pronunciation: '[lítərèri]', related: 'literature 문학', antonyms: 'colloquial', example: 'My father-in-law has been engaged in the literary profession for 30 years.' },
+                { english: 'eruption', korean: '(화산의) 폭발, 분화', pronunciation: '[irʌ́pʃən]', related: 'erupt 분출하다', synonyms: 'gush', example: 'Have you ever seen a volcanic eruption on the spot?' },
+                { english: 'enthusiasm', korean: '열정, 열중, 열광', pronunciation: '[inθúːziæ̀zəm, en-]', related: 'enthusiastic 열정적인', synonyms: 'passion, passionate', example: 'My bosom friend, a jazz musician, has lost enthusiasm for music.' },
+                { english: 'accomplish', korean: '이루다, 완성하다', pronunciation: '[əkɑ́mpliʃ]', related: 'accomplishment 성취, accomplished 숙달된', synonyms: 'achieve, complete', example: "We have accomplished all of the tasks required for improving the building's condition." },
+                { english: 'repeat', korean: '반복하다', pronunciation: '[ripíːt]', related: 'repetition 반복, repetitive 반복적인', synonyms: 'echo', example: 'In some districts across the nation, children who do not achieve the required score on a standardized test have to repeat the grade they have already finished.' },
+                { english: 'grade', korean: '등급, 학년, 성적', pronunciation: '[greid]', related: 'degrade 등급을 낮추다', synonyms: 'rank, mark', example: 'In some districts across the nation, children who do not achieve the required score on a standardized test have to repeat the grade they have already finished.' },
+                { english: 'recall', korean: '생각해 내다, 상기하다, 소환하다', pronunciation: '[rikɔ́ːl]', synonyms: 'recollect', example: 'When my mother died, I recalled how badly I had behaved toward her.' },
+                { english: 'appointment', korean: '(만날) 약속, 임명, 지정', pronunciation: '[əpɔ́intmənt]', related: 'appoint 임명하다, appointed 지정된', synonyms: 'designation', example: 'He received a letter saying that the appointment had been cancelled.' },
+            ],
+            'week4': [
+                { english: 'helpless', korean: '무기력한, 의지할 데 없는', pronunciation: '[hélplis]', related: 'helplessly 무기력하게', example: 'The helpless orphan was taken good care of by her relatives, who treated her like their own daughter.' },
+                { english: 'treat', korean: '대하다, 대접하다, 치료하다, 취급하다', pronunciation: '[triːt]', related: 'treatment 대우, 치료, 취급', synonyms: 'cure, deal in', example: 'The helpless orphan was taken good care of by her relatives, who treated her like their own daughter.' },
+                { english: 'role', korean: '역할, 배역', pronunciation: '[roul]', related: 'play a role in ~에 역할을 하다', synonyms: 'function', example: 'Not enough attention was paid to his active role in founding the university.' },
+                { english: 'found', korean: '설립하다, 기초를 두다', pronunciation: '[faund]', related: 'foundation 설립, 기초', synonyms: 'establish, base', example: 'Not enough attention was paid to his active role in founding the university.' },
+                { english: 'appearance', korean: '외모, 출현', pronunciation: '[əpíərəns]', related: 'appear ~처럼 보이다, 출현하다', synonyms: 'look, advent', antonyms: 'disappearance', example: 'The subtle change in her appearance was taken no notice of by anyone around her.' },
+                { english: 'aware', korean: '알고 있는', pronunciation: '[əwέər]', related: 'awareness 알고 있음, 의식, beware 조심하다', synonyms: 'conscious', antonyms: 'ignorant', example: 'She became aware that she was being made a fool of by them.' },
+                { english: 'structure', korean: '구조, 건축물', pronunciation: '[strʌ́ktʃər]', related: 'structural 구조(상)의', synonyms: 'formation, building', example: 'The discovery of the molecular structure of the new substance was made much of by the press.' },
+                { english: 'fault', korean: '결점, 잘못', pronunciation: '[fɔːlt]', related: 'faulty 결점이 있는', synonyms: 'defect, mistake', antonyms: 'faultless', example: "The player's inappropriate attitude towards the umpire is always found fault with." },
+                { english: 'collect', korean: '수집하다, 모으다', pronunciation: '[kəlékt]', related: 'collection 수집, 소장품, collective 집단적인', synonyms: 'gather', example: 'He was requested to collect information about consumer trends.' },
+                { english: 'academic', korean: '학문의, 학교의', pronunciation: '[æ̀kədémik]', related: 'academy 학회, 학교, academically 학문적으로', example: 'Preschool youngsters should not be made to do academic work.' },
+            ],
+            'week5': [
+                { english: 'competent', korean: '능력 있는, 적임의', pronunciation: '[kɑ́mpətənt]', related: 'competence 능력', synonyms: 'able, qualified', example: 'Competent skiers should find no difficulty with the course.' },
+                { english: 'frequent', korean: '빈번한, 자주 들르다', pronunciation: '[fríːkwənt]', related: 'frequency 빈도, frequently 자주', antonyms: 'occasional', example: 'With more frequent evaluations during the semester, students would feel less anxious when they take exams.' },
+                { english: 'anxious', korean: '걱정하는, 열망하는', pronunciation: '[ǽŋkʃəs]', related: 'anxiety 걱정, anxiously 걱정하여', synonyms: 'apprehensive, desirous', example: 'With more frequent evaluations during the semester, students would feel less anxious when they take exams.' },
+                { english: 'global', korean: '전세계의', pronunciation: '[glóubəl]', related: 'globe 구, 지구', synonyms: 'world-wide', antonyms: 'local', example: 'Without satellites, the Global Positioning System(GPS) would be impossible.' },
+                { english: 'detect', korean: '발견하다, 알아차리다', pronunciation: '[ditékt]', related: 'detection 발견, 탐지, detective 탐정', synonyms: 'discover, notice', example: 'Alert parents could have detected learning disabilities with their child.' },
+                { english: 'starve', korean: '굶주리다', pronunciation: '[stɑːrv]', related: 'starvation 굶주림', synonyms: 'famine', antonyms: 'overeat', example: 'One week later, the poor babies might have starved to death.' },
+                { english: 'examination', korean: '검사, 시험, 진찰', pronunciation: '[igzæ̀mənéiʃən]', related: 'examine 검사하다, 시험보다', synonyms: 'inspection, test', example: 'A closer examination would have revealed that my words held true.' },
+                { english: 'disorder', korean: '질병, 무질서', pronunciation: '[disɔ́ːrdər]', related: 'disorderly 무질서한', synonyms: 'disease, confusion, chaotic', example: 'But for her cordial assistance, he could not have conquered his mental disorder.' },
+                { english: 'create', korean: '창조하다, 창작하다', pronunciation: '[kriéit]', related: 'creation 창조, creative 창조적인, creature 피조물', synonyms: 'invent', example: 'To create wealth is not the only purpose of industry and business.' },
+                { english: 'arrange', korean: '배열하다, 준비하다, 조정하다', pronunciation: '[əréindʒ]', related: 'arrangement 배열, 준비, 조정', synonyms: 'put in order, preparation, settlement', example: "To organize an exhibition and arrange a collection is part of a curator's job." },
+            ],
+             'week6': [
+                { english: 'accurate', korean: '정확한, 빈틈없는', pronunciation: '[ǽkjurit]', related: 'accuracy 정확, 정밀', synonyms: 'precise', antonyms: 'inaccurate', example: 'The brochure appears to give a fair and accurate description of each hotel.' },
+                { english: 'associate', korean: '연상하다, 연합하다, 관련시키다, 동료', pronunciation: '[əsóuʃièit]', related: 'association 협회, 연합, 연상', synonyms: 'combine, colleague', example: 'People tend to associate the old days with good times, and seem to have forgotten the hardship they endured in the past.' },
+                { english: 'hardship', korean: '고난, 곤경', pronunciation: '[hɑ́ːrdʃip]', synonyms: 'adversity', example: 'People tend to associate the old days with good times, and seem to have forgotten the hardship they endured in the past.' },
+                { english: 'contrary', korean: '반대의, 정반대', pronunciation: '[kɑ́ntreri]', related: 'on the contrary 이와는 반대로', synonyms: 'opposite', example: 'Contrary to your expectation, we chanced to read your letter.' },
+                { english: 'era', korean: '시대, 연대', pronunciation: '[íərə]', synonyms: 'epoch', example: 'He happened to find archaeological remains dating back to the late Roman era.' },
+                { english: 'distinguish', korean: '구별하다', pronunciation: '[distíŋgwiʃ]', related: 'distinction 구별, 차이, distinct 별개의, distinctive 특징적인', synonyms: 'differentiate', example: 'In the course of evolution, humans got to distinguish colors.' },
+                { english: 'symbol', korean: '상징, 기호', pronunciation: '[símbəl]', related: 'symbolize 상징하다, symbolic 상징적인', synonyms: 'sign', example: 'Some symbols in dreams prove to be universal; in other words, they have the same meaning to people everywhere.' },
+                { english: 'universal', korean: '보편적인, 전세계의, 우주의', pronunciation: '[jùːnəvə́ːrsəl]', related: 'universality 보편타당성', synonyms: 'common, global', example: 'Some symbols in dreams prove to be universal; in other words, they have the same meaning to people everywhere.' },
+                { english: 'addiction', korean: '중독, 탐닉', pronunciation: '[ədíkʃən]', related: 'addict 중독되게 하다, addictive 중독성의, addicted 중독된', example: 'Eventually the actress managed to overcome her addiction to alcohol.' },
+                { english: 'annoy', korean: '짜증나게 하다, 괴롭히다', pronunciation: '[ənɔ́i]', related: 'annoyance 성가심', synonyms: 'irritate', example: 'When a man becomes annoyed, he tends to jump to conclusions.' },
+            ],
+            'week7': [
+                { english: 'transportation', korean: '수송, 운송, 교통', pronunciation: '[træ̀nspərtéiʃən]', related: 'transport 수송하다', synonyms: 'convey', example: 'The rising cost of energy has brought about the need of energy-saving transportation.' },
+                { english: 'gather', korean: '모으다, 채집하다', pronunciation: '[gǽðər]', related: 'gathering 모임, 채집', example: "There's an old saying that a rolling stone gathers no moss." },
+                { english: 'contain', korean: '담다, 포함하다, 억제하다', pronunciation: '[kəntéin]', related: 'content 내용물, contain oneself 자제하다', example: 'As many as 80 percent of all job résumés contain misleading information.' },
+                { english: 'sufficient', korean: '충분한', pronunciation: '[səfíʃənt]', related: 'sufficiency 충분, suffice 충분하다', antonyms: 'deficient', example: 'Growing children needs a sufficient and nutritious food supply.' },
+                { english: 'rage', korean: '분노, 맹위, 열망', pronunciation: '[reidʒ]', related: 'enrage 분노하게 하다', example: 'The raging fire is causing extensive damage to the island\'s forests.' },
+                { english: 'cancer', korean: '암', pronunciation: '[kǽnsər]', related: 'lung cancer 폐암, stomach cancer 위암', example: 'Breast cancer is the leading cause of death for women in their forties.' },
+                { english: 'environment', korean: '환경', pronunciation: '[inváiərənmənt]', related: 'environmentalist 환경보호론자, environmental 환경의', synonyms: 'circumstance', example: 'Adaptation is the ability of any living thing to adjust to its environment.' },
+                { english: 'evaporate', korean: '증발하다, 사라지다', pronunciation: '[ivǽpərèit]', related: 'vapor 수증기, evaporation 증발', example: 'When water evaporates, it has a cooling effect on the air.' },
+                { english: 'equipment', korean: '장비, 준비, 능력', pronunciation: '[ikwípmənt]', related: 'equip 갖추다', example: 'Anyone using this equipment should be careful of their eyes.' },
+                { english: 'ingredient', korean: '성분, 재료, 요소', pronunciation: '[ingríːdiənt]', synonyms: 'element, factor', example: 'Endurance is an essential ingredient contributing to our success.' },
+            ],
+            'week8': [
+                { english: 'fragrant', korean: '냄새 좋은, 향기로운, 유쾌한', pronunciation: '[fréigrənt]', related: 'fragrance 향기, 방향', synonyms: 'aromatic', example: 'The forest was cool and fragrant, and the walk through it calmed my spirits.' },
+                { english: 'value', korean: '가치, 가격', pronunciation: '[vǽljuː]', related: 'valuable 값비싼, 귀중한', synonyms: 'worth, price', antonyms: 'valueless, worthless', example: "Meat's nutritive value is much greater than that of herbs and fruit." },
+                { english: 'peninsula', korean: '반도', pronunciation: '[pənínsjulə]', related: 'peninsular 반도의', example: 'Reunification on the Korean Peninsula is different from that on Germany.' },
+                { english: 'compare', korean: '비교하다, 비유하다', pronunciation: '[kəmpέər]', related: 'comparison 비교, 대조, comparative 비교의', synonyms: 'contrast', example: "The police compared the suspect's fingerprints with those found at the crime scene." },
+                { english: 'idiom', korean: '숙어, 관용구', pronunciation: '[ídiəm]', related: 'idiomatic 관용적인, 특유의', example: 'Contemporary American idioms are the ones that reflect common aspects of American heritage.' },
+                { english: 'course', korean: '진로, 흐름, 강의', pronunciation: '[kɔːrs]', related: 'a matter of course 당연한 일', example: 'The important decisions, the ones that will alter the course of our lives, will come from within us.' },
+                { english: 'folk', korean: '민간의, 서민의, 민속의', pronunciation: '[fouk]', example: 'The herb is used as a folk remedy for a baby\'s teething pains.' },
+                { english: 'remedy', korean: '치료, 치료약, 의료', pronunciation: '[rémədi]', synonyms: 'treatment, medicine, cure', example: 'The herb is used as a folk remedy for a baby\'s teething pains.' },
+                { english: 'absorb', korean: '흡수하다, 열중하게 하다', pronunciation: '[əbsɔ́ːrb]', related: 'absorption 흡수, 열중, absorbed 열중한', synonyms: 'soak up, engross', example: 'The bumper absorbs most of the shock of impact.' },
+                { english: 'task', korean: '업무, 과업, 노력', pronunciation: '[tæsk]', related: 'task force 대책위원회', example: 'Few of them were willing to assume the difficult task.' },
+            ],
+            'week9': [
+                { english: 'prefer', korean: '더 좋아하다, 선호하다', pronunciation: '[prifə́ːr]', related: 'preference 선호, preferable 더 나은', example: 'The average person tends to prefer good listeners to good talkers.' },
+                { english: 'oral', korean: '구술의', pronunciation: '[ɔ́ːrəl]', antonyms: 'written', example: 'I think that an oral test is preferable to a written test as an entrance exam.' },
+                { english: 'superior', korean: '우월한, 상급의', pronunciation: '[səpíəriər]', related: 'superiority 우월(성)', antonyms: 'inferior', example: 'Some people feel satisfied when they think they are superior to others.' },
+                { english: 'senior', korean: '손위의, 선배의', pronunciation: '[síːnjər]', example: 'The vice president of the company is six years senior to the president.' },
+                { english: 'benefit', korean: '이익, 수당, 이익을 얻다', pronunciation: '[bénəfit]', related: 'beneficial 유익한', example: "Milk's health benefits outweigh any possible risks milk can have." },
+                { english: 'urban', korean: '도시의, 도시풍의', pronunciation: '[ə́ːrbən]', related: 'suburb 교외', antonyms: 'rural', example: 'In some urban districts in that country, deaths outnumber births.' },
+                { english: 'detail', korean: '세부 사항', pronunciation: '[díːteil]', related: 'detailed 상세한, in detail 상세히', example: 'Advertisers often try to show good images rather than realistic details.' },
+                { english: 'dignity', korean: '존엄성, 위엄, 명예', pronunciation: '[dígnəti]', related: 'dignify 위엄을 갖추다', example: 'I would rather die in dignity than live in disgrace.' },
+                { english: 'aggressive', korean: '공격적인, 호전적인', pronunciation: '[əgrésiv]', related: 'aggression 공격(성), 침략', synonyms: 'warlike', example: 'A teenager whose father is aggressive is twice as likely to be so as others.' },
+                { english: 'diminish', korean: '줄다, 감소하다', pronunciation: '[dimíniʃ]', related: 'diminishment 감소', synonyms: 'lessen, decrease', example: 'The influence of the labor union has diminished by more than half.' },
+            ],
+            'week10': [
+                { english: 'resource', korean: '자원, 수단, 재치', pronunciation: '[ríːsɔːrs]', related: 'resourceful 자원이 풍부한, 재치있는', synonyms: 'wit', example: 'We cannot deny the fact that we are abusing natural resources.' },
+                { english: 'release', korean: '석방하다, 발간하다, 개봉하다', pronunciation: '[rilíːs]', synonyms: 'issue', example: 'The kidnapper was released on the grounds that she was insane.' },
+                { english: 'expand', korean: '팽창하다, 확장하다, 넓히다', pronunciation: '[ikspǽnd]', related: 'expansion 확장, 팽창', synonyms: 'extend', example: 'Hubble developed the theory that our universe was expanding.' },
+                { english: 'reinforce', korean: '강화하다, 보강하다', pronunciation: '[rìːinfɔ́ːrs]', related: 'reinforcement 강화, 보강', synonyms: 'strengthen, fortify', example: 'The film reinforces the idea that women should be a wise mother and good wife.' },
+                { english: 'official', korean: '공식적인, 공인된, 공무원', pronunciation: '[əfíʃəl]', related: 'officialism 관료주의', synonyms: 'authorized', example: 'There was an official announcement that the president passed away.' },
+                { english: 'defeat', korean: '쳐부수다, 패배시키다, 패배', pronunciation: '[difíːt]', synonyms: 'vanquish, frustrate', example: 'Word came to the village that their country defeated the enemy.' },
+                { english: 'superstition', korean: '미신', pronunciation: '[sùːpərstíʃən]', related: 'superstitious 미신적인', example: 'There is a superstition among seamen that dolphins will save drowning men.' },
+                { english: 'cancel', korean: '취소하다, 말소하다', pronunciation: '[kǽnsəl]', synonyms: 'call off', example: 'The question arose whether we should cancel the game or not.' },
+                { english: 'aim', korean: '겨냥, 과녁, 목적, 겨냥하다', pronunciation: '[eim]', synonyms: 'target, purpose', example: 'He has but one aim in life, to support his family.' },
+                { english: 'courtesy', korean: '예의, 정중, 호의', pronunciation: '[kə́ːrtəsi]', related: 'courteous 예의바른', synonyms: 'civility, favor', example: "He didn't even have the courtesy to call and say he couldn't come." },
+            ],
+        };
+
+        // 상태 변수
+        let currentWords = [];
+        let currentMode = 'list';
+        let currentPage = 1;
+        const wordsPerPage = 10;
+        let currentTestWord = null;
+
+        // DOM 요소
+        const weekSelection = document.getElementById('week-selection');
+        const modeSelection = document.getElementById('mode-selection');
+        const contentDisplay = document.getElementById('content-display');
+        const pagination = document.getElementById('pagination');
+        const initialMessage = document.getElementById('initial-message');
+        
+        const prevPageBtn = document.getElementById('prev-page');
+        const nextPageBtn = document.getElementById('next-page');
+        const pageInfo = document.getElementById('page-info');
+        
+        // 초기화 함수
+        function init() {
+            // Week 버튼 생성
+            for (let i = 1; i <= 10; i++) {
+                const button = document.createElement('button');
+                button.dataset.week = `week${i}`;
+                button.className = 'btn week-btn bg-white text-blue-600 font-semibold py-2 px-4 border border-blue-500 rounded-md shadow-sm hover:bg-blue-50';
+                button.textContent = `Week ${i}`;
+                weekSelection.appendChild(button);
+            }
+
+            // 이벤트 리스너 설정
+            weekSelection.addEventListener('click', (e) => {
+                if (e.target.matches('.week-btn')) {
+                    const week = e.target.dataset.week;
+                    currentWords = wordData[week];
+                    currentPage = 1;
+                    
+                    document.querySelectorAll('.week-btn').forEach(btn => btn.classList.remove('btn-active'));
+                    e.target.classList.add('btn-active');
+                    
+                    initialMessage.classList.add('hidden');
+                    modeSelection.classList.remove('hidden');
+                    modeSelection.classList.add('flex');
+                    
+                    setMode('list');
+                }
+            });
+
+            modeSelection.addEventListener('click', (e) => {
+                if (e.target.matches('.mode-btn')) {
+                    const mode = e.target.dataset.mode;
+                    setMode(mode);
+                }
+            });
+            
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderList();
+                }
+            });
+
+            nextPageBtn.addEventListener('click', () => {
+                const totalPages = Math.ceil(currentWords.length / wordsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderList();
+                }
+            });
+
+            contentDisplay.addEventListener('click', (e) => {
+                const card = e.target.closest('.word-card');
+                if (card) {
+                    card.classList.toggle('expanded');
+                }
+            });
+        }
+
+
+        // 모드 설정 함수
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('btn-active'));
+            document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('btn-active');
+
+            if (mode === 'list') {
+                pagination.classList.remove('hidden');
+                pagination.classList.add('flex');
+                renderList();
+            } else {
+                pagination.classList.add('hidden');
+                renderTest();
+            }
+        }
+
+        // 상세 정보 HTML 생성 함수
+        function createDetailHtml(word) {
+            let html = `<div class="text-sm space-y-2 text-left text-gray-700">`;
+            if (word.pronunciation) html += `<p><strong>발음:</strong> ${word.pronunciation}</p>`;
+            if (word.synonyms) html += `<p><strong>동의어:</strong> ${word.synonyms}</p>`;
+            if (word.antonyms) html += `<p><strong>반의어:</strong> ${word.antonyms}</p>`;
+            if (word.related) html += `<p><strong>관련어:</strong> ${word.related}</p>`;
+            if (word.example) html += `<p class="mt-2 pt-2 border-t"><strong>예문:</strong> <span class="italic">${word.example}</span></p>`;
+            html += `</div>`;
+            return html;
+        }
+
+        // 단어 목록 렌더링
+        function renderList() {
+            contentDisplay.innerHTML = '';
+            const startIndex = (currentPage - 1) * wordsPerPage;
+            const endIndex = startIndex + wordsPerPage;
+            const paginatedWords = currentWords.slice(startIndex, endIndex);
+
+            const listContainer = document.createElement('div');
+            listContainer.className = 'w-full space-y-3';
+
+            paginatedWords.forEach(word => {
+                const wordCard = document.createElement('div');
+                wordCard.className = 'word-card bg-gray-50 p-4 rounded-lg cursor-pointer shadow-sm hover:bg-gray-100';
+                wordCard.innerHTML = `
+                    <div class="summary flex justify-between items-center">
+                        <div>
+                            <span class="text-lg font-semibold text-gray-800">${word.english}</span>
+                            <span class="text-md text-gray-600 ml-4">${word.korean.split(',')[0]}</span>
+                        </div>
+                        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    <div class="details mt-4 border-t pt-4">
+                        <p class="mb-2"><strong>뜻:</strong> ${word.korean}</p>
+                        ${createDetailHtml(word)}
+                    </div>
+                `;
+                listContainer.appendChild(wordCard);
+            });
+            contentDisplay.appendChild(listContainer);
+            updatePagination();
+        }
+
+        // 페이지네이션 업데이트
+        function updatePagination() {
+            if (!currentWords || currentWords.length === 0) {
+                pagination.classList.add('hidden');
+                return;
+            }
+            const totalPages = Math.ceil(currentWords.length / wordsPerPage);
+            pageInfo.textContent = `페이지 ${currentPage} / ${totalPages}`;
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+            pagination.classList.remove('hidden');
+            pagination.classList.add('flex');
+        }
+
+        // 테스트 렌더링
+        function renderTest() {
+            pickRandomWord();
+            let question, answer;
+
+            if (currentMode === 'test-eng-kor') {
+                question = currentTestWord.english;
+                answer = currentTestWord.korean;
+            } else { // test-kor-eng
+                question = currentTestWord.korean;
+                answer = currentTestWord.english;
+            }
+
+            contentDisplay.innerHTML = `
+                <div class="w-full max-w-lg text-center mx-auto">
+                    <div class="main-card p-8">
+                        <p class="text-gray-500 text-sm mb-2">${currentMode === 'test-eng-kor' ? '다음 단어의 뜻은?' : '다음 뜻을 가진 영어 단어는?'}</p>
+                        <h2 class="text-4xl font-bold text-blue-600 mb-6 break-words">${question}</h2>
+                        <div id="answer-area" class="min-h-[4rem] flex flex-col items-center justify-center">
+                            <button id="show-answer-btn" class="btn bg-blue-500 text-white font-bold py-2 px-6 rounded-full hover:bg-blue-600">정답 확인</button>
+                            <div id="test-details" class="hidden w-full mt-4 p-4 bg-gray-100 rounded-lg"></div>
+                        </div>
+                    </div>
+                    <button id="next-question-btn" class="btn mt-6 bg-green-500 text-white font-bold py-3 px-8 rounded-full hover:bg-green-600">다음 문제</button>
+                </div>
+            `;
+            
+            document.getElementById('show-answer-btn').addEventListener('click', () => {
+                const answerArea = document.getElementById('answer-area');
+                const testDetails = document.getElementById('test-details');
+                
+                answerArea.querySelector('button').classList.add('hidden');
+                answerArea.insertAdjacentHTML('afterbegin', `<p class="text-2xl font-semibold text-green-600 break-words">${answer}</p>`);
+                
+                testDetails.innerHTML = createDetailHtml(currentTestWord);
+                testDetails.classList.remove('hidden');
+            });
+
+            document.getElementById('next-question-btn').addEventListener('click', renderTest);
+        }
+
+        // 무작위 단어 선택
+        function pickRandomWord() {
+            if (currentWords && currentWords.length > 0) {
+               currentTestWord = currentWords[Math.floor(Math.random() * currentWords.length)];
+            }
+        }
+
+        // 앱 시작
+        init();
+
+    </script>
+</body>
+</html>

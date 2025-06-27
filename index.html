@@ -36,7 +36,7 @@
         }
         .word-card.expanded .details {
             display: block;
-            max-height: 500px; /* Adjust as needed */
+            max-height: 500px;
             transition: max-height 0.5s ease-in;
         }
         .word-card.expanded .summary svg {
@@ -1333,17 +1333,19 @@
             weekSelection.addEventListener('click', (e) => {
                 if (e.target.matches('.week-btn')) {
                     const week = e.target.dataset.week;
-                    currentWords = wordData[week];
-                    currentPage = 1;
-                    
-                    document.querySelectorAll('.week-btn').forEach(btn => btn.classList.remove('btn-active'));
-                    e.target.classList.add('btn-active');
-                    
-                    initialMessage.classList.add('hidden');
-                    modeSelection.classList.remove('hidden');
-                    modeSelection.classList.add('flex');
-                    
-                    setMode('list');
+                    if (wordData[week]) {
+                        currentWords = wordData[week];
+                        currentPage = 1;
+                        
+                        document.querySelectorAll('.week-btn').forEach(btn => btn.classList.remove('btn-active'));
+                        e.target.classList.add('btn-active');
+                        
+                        initialMessage.classList.add('hidden');
+                        modeSelection.classList.remove('hidden');
+                        modeSelection.classList.add('flex');
+                        
+                        setMode('list');
+                    }
                 }
             });
 
@@ -1385,8 +1387,6 @@
             document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('btn-active');
 
             if (mode === 'list') {
-                pagination.classList.remove('hidden');
-                pagination.classList.add('flex');
                 renderList();
             } else {
                 pagination.classList.add('hidden');
@@ -1448,14 +1448,24 @@
             pageInfo.textContent = `페이지 ${currentPage} / ${totalPages}`;
             prevPageBtn.disabled = currentPage === 1;
             nextPageBtn.disabled = currentPage === totalPages;
-            pagination.classList.remove('hidden');
-            pagination.classList.add('flex');
+            
+            if (totalPages > 1) {
+                pagination.classList.remove('hidden');
+                pagination.classList.add('flex');
+            } else {
+                pagination.classList.add('hidden');
+            }
         }
 
         // 테스트 렌더링
         function renderTest() {
             pickRandomWord();
             let question, answer;
+
+            if (!currentTestWord) {
+                contentDisplay.innerHTML = `<p class="text-center text-gray-500">선택한 주차에 단어가 없습니다.</p>`;
+                return;
+            }
 
             if (currentMode === 'test-eng-kor') {
                 question = currentTestWord.english;
@@ -1497,6 +1507,8 @@
         function pickRandomWord() {
             if (currentWords && currentWords.length > 0) {
                currentTestWord = currentWords[Math.floor(Math.random() * currentWords.length)];
+            } else {
+               currentTestWord = null;
             }
         }
 

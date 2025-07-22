@@ -39,11 +39,15 @@
             max-height: 500px;
             transition: max-height 0.5s ease-in;
         }
-        .word-card.expanded .summary svg {
+        .word-card.expanded .summary svg.expand-arrow {
             transform: rotate(180deg);
         }
-        .summary svg {
+        .summary svg.expand-arrow {
             transition: transform 0.3s ease;
+        }
+        .speaking-highlight {
+            background-color: #FEF3C7 !important; /* yellow-200 */
+            transform: scale(1.02);
         }
     </style>
 </head>
@@ -68,6 +72,7 @@
                 <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">선택한 주차 학습</h3>
                 <div id="mode-selection" class="flex flex-wrap justify-center gap-2 md:gap-4 mb-4">
                     <button data-mode="list" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">Week 전체 단어 보기</button>
+                    <button data-mode="listen-all" class="btn mode-btn bg-orange-400 text-white font-medium py-2 px-4 rounded-lg">Week 전체 단어 듣기</button>
                     <button data-mode="test-eng-kor" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">Week 전체 테스트 (영→한)</button>
                     <button data-mode="test-kor-eng" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">Week 전체 테스트 (한→영)</button>
                 </div>
@@ -1308,7 +1313,6 @@
                 { english: 'experiment', korean: '실험, 실험하다', pronunciation: '[ikspérəmənt]', related: 'experimental 실험적인', synonyms: 'trial', example: 'The fact that humans benefit cannot be used to justify using animals in research any more than it can be used to justify experimenting on other humans.' }
             ]
         };
-
         // 상태 변수
         let allWords = [];
         let selectedWeekKey = null;
@@ -1318,6 +1322,9 @@
         let currentPage = 1;
         const wordsPerPage = 10;
         let currentTestWord = null;
+        let isSpeakingAll = false;
+        let speakQueue = [];
+        let currentSpeakingCard = null;
 
         // DOM 요소
         const weekSelection = document.getElementById('week-selection');
@@ -1370,13 +1377,19 @@
             modeSelection.addEventListener('click', (e) => {
                 if (e.target.matches('.mode-btn')) {
                     const mode = e.target.dataset.mode;
-                    currentWords = wordData[selectedWeekKey];
-                    setMode(mode);
+                    if (mode === 'listen-all') {
+                        handleListenAll();
+                    } else {
+                        stopSpeakAllWords();
+                        currentWords = wordData[selectedWeekKey];
+                        setMode(mode);
+                    }
                 }
             });
 
             unitTestSelection.addEventListener('click', (e) => {
                 if (e.target.matches('.unit-btn')) {
+                    stopSpeakAllWords();
                     const start = parseInt(e.target.dataset.start);
                     const end = parseInt(e.target.dataset.end);
                     const mode = e.target.dataset.mode;
@@ -1405,7 +1418,17 @@
             });
 
             contentDisplay.addEventListener('click', (e) => {
+                const speakBtn = e.target.closest('.speak-btn');
                 const card = e.target.closest('.word-card');
+
+                if (speakBtn) {
+                    e.stopPropagation(); // 카드 확장 방지
+                    const english = speakBtn.dataset.english;
+                    const korean = speakBtn.dataset.korean;
+                    speakWord(english, korean);
+                    return;
+                }
+
                 if (card) {
                     card.classList.toggle('expanded');
                 }
@@ -1413,6 +1436,7 @@
         }
 
         function handleWeekSelection(weekKey) {
+            stopSpeakAllWords();
             selectedWeekKey = weekKey;
             const wordsInWeek = wordData[weekKey];
 
@@ -1463,17 +1487,106 @@
                 unitTestSelection.appendChild(btnKorEng);
             }
         }
+        
+        function speakWord(english, korean, callback) {
+            window.speechSynthesis.cancel(); 
+
+            const utteranceEng = new SpeechSynthesisUtterance(english);
+            utteranceEng.lang = 'en-US';
+            utteranceEng.rate = 0.9;
+
+            const utteranceKor = new SpeechSynthesisUtterance(korean);
+            utteranceKor.lang = 'ko-KR';
+            utteranceKor.rate = 0.9;
+            
+            utteranceEng.onend = () => {
+                setTimeout(() => {
+                    window.speechSynthesis.speak(utteranceKor);
+                }, 200); 
+            };
+            
+            if (callback) {
+                utteranceKor.onend = callback;
+            }
+
+            window.speechSynthesis.speak(utteranceEng);
+        }
+
+        function handleListenAll() {
+            if (isSpeakingAll) {
+                stopSpeakAllWords();
+            } else {
+                startSpeakAllWords();
+            }
+        }
+
+        function startSpeakAllWords() {
+            isSpeakingAll = true;
+            const listenBtn = document.querySelector('[data-mode="listen-all"]');
+            listenBtn.textContent = '듣기 중지';
+            listenBtn.classList.add('bg-red-500');
+            listenBtn.classList.remove('bg-orange-400');
+            
+            setMode('list'); // 단어 목록 보기 모드로 전환
+            
+            speakQueue = [...wordData[selectedWeekKey]];
+            speakNextInQueue();
+        }
+
+        function stopSpeakAllWords() {
+            isSpeakingAll = false;
+            speakQueue = [];
+            window.speechSynthesis.cancel();
+            
+            const listenBtn = document.querySelector('[data-mode="listen-all"]');
+            if(listenBtn) {
+                listenBtn.textContent = 'Week 전체 단어 듣기';
+                listenBtn.classList.remove('bg-red-500');
+                listenBtn.classList.add('bg-orange-400');
+            }
+
+            if (currentSpeakingCard) {
+                currentSpeakingCard.classList.remove('speaking-highlight');
+                currentSpeakingCard = null;
+            }
+        }
+
+        function speakNextInQueue() {
+            if (!isSpeakingAll || speakQueue.length === 0) {
+                stopSpeakAllWords();
+                return;
+            }
+
+            const word = speakQueue.shift();
+            
+            // 하이라이트 처리
+            if (currentSpeakingCard) {
+                currentSpeakingCard.classList.remove('speaking-highlight');
+            }
+            currentSpeakingCard = document.querySelector(`.word-card[data-word-id="${word.id}"]`);
+            if (currentSpeakingCard) {
+                currentSpeakingCard.classList.add('speaking-highlight');
+                currentSpeakingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            speakWord(word.english, word.korean.split(',')[0], () => {
+                setTimeout(speakNextInQueue, 500); // 단어 사이 0.5초 딜레이
+            });
+        }
+
 
         function setMode(mode) {
             currentMode = mode;
             if (weekActionsContainer.offsetParent !== null) {
                  document.querySelectorAll('.mode-btn').forEach(btn => {
-                    if (btn.dataset.mode === mode) btn.classList.add('btn-active');
+                    if (btn.dataset.mode === mode) {
+                        if(mode !== 'listen-all') btn.classList.add('btn-active');
+                    }
                     else btn.classList.remove('btn-active');
                 });
             }
 
-            if (mode === 'list') {
+            if (mode === 'list' || mode === 'listen-all') {
                 renderList();
             } else {
                 testableWords = [...currentWords]; 
@@ -1501,14 +1614,20 @@
 
             paginatedWords.forEach(word => {
                 const wordCard = document.createElement('div');
-                wordCard.className = 'word-card bg-gray-50 p-4 rounded-lg cursor-pointer shadow-sm hover:bg-gray-100';
+                wordCard.className = 'word-card bg-gray-50 p-4 rounded-lg shadow-sm hover:bg-gray-100 transition-all duration-300';
+                wordCard.dataset.wordId = word.id;
                 wordCard.innerHTML = `
                     <div class="summary flex justify-between items-center">
-                        <div>
+                        <div class="flex-grow cursor-pointer">
                             <span class="text-lg font-semibold text-gray-800">${word.id}. ${word.english}</span>
                             <span class="text-md text-gray-600 ml-4">${word.korean.split(',')[0]}</span>
                         </div>
-                        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <div class="flex items-center space-x-2">
+                             <button class="speak-btn p-2 rounded-full hover:bg-gray-200" data-english="${word.english}" data-korean="${word.korean.split(',')[0]}">
+                                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M11 5.882V19.118a2 2 0 01-2.828 1.414l-4.243-4.243a2 2 0 010-2.828l4.243-4.243A2 2 0 0111 5.882z"></path></svg>
+                            </button>
+                            <svg class="w-6 h-6 text-gray-500 expand-arrow cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
                     </div>
                     <div class="details mt-4 border-t pt-4">
                         <p class="mb-2"><strong>뜻:</strong> ${word.korean}</p>

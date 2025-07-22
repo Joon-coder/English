@@ -1326,6 +1326,7 @@
         let isSpeakingAll = false;
         let speakQueue = [];
         let currentSpeakingCard = null;
+        let currentAudio = null; // 오디오 객체를 추적하기 위한 변수
 
         // DOM 요소
         const weekSelection = document.getElementById('week-selection');
@@ -1489,28 +1490,22 @@
             }
         }
         
-        function speakWord(english, korean, callback) {
-            window.speechSynthesis.cancel(); 
-
-            const utteranceEng = new SpeechSynthesisUtterance(english);
-            utteranceEng.lang = 'en-US';
-            utteranceEng.rate = 0.9;
-
-            const utteranceKor = new SpeechSynthesisUtterance(korean);
-            utteranceKor.lang = 'ko-KR';
-            utteranceKor.rate = 0.9;
-            
-            utteranceEng.onend = () => {
-                setTimeout(() => {
-                    window.speechSynthesis.speak(utteranceKor);
-                }, 200); 
-            };
-            
-            if (callback) {
-                utteranceKor.onend = callback;
+        function playAudio(text, lang, onEnded) {
+            if (currentAudio) {
+                currentAudio.pause();
             }
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encodeURIComponent(text)}&tl=${lang}`;
+            currentAudio = new Audio(url);
+            currentAudio.addEventListener('ended', onEnded);
+            currentAudio.play().catch(e => console.error("오디오 재생 오류:", e));
+        }
 
-            window.speechSynthesis.speak(utteranceEng);
+        function speakWord(english, korean, callback) {
+            playAudio(english, 'en-US', () => {
+                setTimeout(() => {
+                    playAudio(korean, 'ko-KR', callback);
+                }, 200);
+            });
         }
 
         function handleListenAll() {
@@ -1537,7 +1532,10 @@
         function stopSpeakAllWords() {
             isSpeakingAll = false;
             speakQueue = [];
-            window.speechSynthesis.cancel();
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
             
             const listenBtn = document.querySelector('[data-mode="listen-all"]');
             if(listenBtn) {
@@ -1560,7 +1558,6 @@
 
             const word = speakQueue.shift();
             
-            // 하이라이트 처리
             if (currentSpeakingCard) {
                 currentSpeakingCard.classList.remove('speaking-highlight');
             }
@@ -1598,6 +1595,7 @@
 
         function createDetailHtml(word) {
             let html = `<div class="text-sm space-y-2 text-left text-gray-700">`;
+            html += `<p><strong>뜻:</strong> ${word.korean}</p>`;
             if (word.pronunciation) html += `<p><strong>발음:</strong> ${word.pronunciation}</p>`;
             if (word.synonyms) html += `<p><strong>동의어:</strong> ${word.synonyms}</p>`;
             if (word.antonyms) html += `<p><strong>반의어:</strong> ${word.antonyms}</p>`;
@@ -1634,7 +1632,6 @@
                         </div>
                     </div>
                     <div class="details mt-4 border-t pt-4">
-                        <p class="mb-2"><strong>뜻:</strong> ${word.korean}</p>
                         ${createDetailHtml(word)}
                     </div>
                 `;

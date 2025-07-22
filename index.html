@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>영어 단어 학습 앱 (Week 1-10)</title>
+    <title>영어 단어 학습 앱 (사용자 정의 버전)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -56,17 +56,26 @@
 
         <main class="main-card p-6 md:p-8">
             <!-- 주차 선택 -->
-            <div id="week-selection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-8">
-                <!-- Week buttons will be dynamically inserted here -->
-            </div>
-
-            <!-- 학습 모드 선택 -->
-            <div id="mode-selection" class="hidden flex-wrap justify-center border-b-2 border-gray-200 pb-6 mb-6 gap-2 md:gap-4">
-                <button data-mode="list" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">전체 단어 보기</button>
-                <button data-mode="test-eng-kor" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">테스트 (영어 → 한글)</button>
-                <button data-mode="test-kor-eng" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">테스트 (한글 → 영어)</button>
+            <div class="border-b-2 border-gray-200 pb-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">주차 선택</h3>
+                <div id="week-selection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    <!-- Week buttons will be dynamically inserted here -->
+                </div>
             </div>
             
+            <!-- 선택한 주차 학습 (주차 선택 시 활성화) -->
+            <div id="week-actions-container" class="hidden border-b-2 border-gray-200 pb-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">선택한 주차 학습</h3>
+                <div id="mode-selection" class="flex flex-wrap justify-center gap-2 md:gap-4 mb-4">
+                    <button data-mode="list" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">Week 전체 단어 보기</button>
+                    <button data-mode="test-eng-kor" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">Week 전체 테스트 (영→한)</button>
+                    <button data-mode="test-kor-eng" class="btn mode-btn bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg">Week 전체 테스트 (한→영)</button>
+                </div>
+                <div id="unit-test-selection" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <!-- Unit test buttons will be inserted here -->
+                </div>
+            </div>
+
             <!-- 콘텐츠 표시 영역 -->
             <div id="content-display" class="min-h-[450px]">
                 <div id="initial-message" class="text-center text-gray-500 pt-16">
@@ -1301,7 +1310,10 @@
         };
 
         // 상태 변수
+        let allWords = [];
+        let selectedWeekKey = null;
         let currentWords = [];
+        let testableWords = []; 
         let currentMode = 'list';
         let currentPage = 1;
         const wordsPerPage = 10;
@@ -1309,18 +1321,34 @@
 
         // DOM 요소
         const weekSelection = document.getElementById('week-selection');
+        const weekActionsContainer = document.getElementById('week-actions-container');
         const modeSelection = document.getElementById('mode-selection');
+        const unitTestSelection = document.getElementById('unit-test-selection');
         const contentDisplay = document.getElementById('content-display');
         const pagination = document.getElementById('pagination');
         const initialMessage = document.getElementById('initial-message');
-        
         const prevPageBtn = document.getElementById('prev-page');
         const nextPageBtn = document.getElementById('next-page');
         const pageInfo = document.getElementById('page-info');
         
-        // 초기화 함수
         function init() {
-            // Week 버튼 생성
+            processAllWords();
+            createWeekButtons();
+            addEventListeners();
+        }
+
+        function processAllWords() {
+            let globalId = 1;
+            for (const weekKey in wordData) {
+                wordData[weekKey] = wordData[weekKey].map(word => {
+                    const wordWithId = {...word, id: globalId++};
+                    allWords.push(wordWithId);
+                    return wordWithId;
+                });
+            }
+        }
+
+        function createWeekButtons() {
             for (let i = 1; i <= 10; i++) {
                 const button = document.createElement('button');
                 button.dataset.week = `week${i}`;
@@ -1328,30 +1356,35 @@
                 button.textContent = `Week ${i}`;
                 weekSelection.appendChild(button);
             }
-
-            // 이벤트 리스너 설정
+        }
+        
+        function addEventListeners() {
             weekSelection.addEventListener('click', (e) => {
                 if (e.target.matches('.week-btn')) {
-                    const week = e.target.dataset.week;
-                    if (wordData[week]) {
-                        currentWords = wordData[week];
-                        currentPage = 1;
-                        
-                        document.querySelectorAll('.week-btn').forEach(btn => btn.classList.remove('btn-active'));
-                        e.target.classList.add('btn-active');
-                        
-                        initialMessage.classList.add('hidden');
-                        modeSelection.classList.remove('hidden');
-                        modeSelection.classList.add('flex');
-                        
-                        setMode('list');
-                    }
+                    handleWeekSelection(e.target.dataset.week);
+                    document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('btn-active'));
+                    e.target.classList.add('btn-active');
                 }
             });
-
+            
             modeSelection.addEventListener('click', (e) => {
                 if (e.target.matches('.mode-btn')) {
                     const mode = e.target.dataset.mode;
+                    currentWords = wordData[selectedWeekKey];
+                    setMode(mode);
+                }
+            });
+
+            unitTestSelection.addEventListener('click', (e) => {
+                if (e.target.matches('.unit-btn')) {
+                    const start = parseInt(e.target.dataset.start);
+                    const end = parseInt(e.target.dataset.end);
+                    const mode = e.target.dataset.mode;
+                    const weekWords = wordData[selectedWeekKey];
+                    currentWords = weekWords.slice(start - 1, end);
+                    
+                    document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('btn-active'));
+                    e.target.classList.add('btn-active');
                     setMode(mode);
                 }
             });
@@ -1379,34 +1412,84 @@
             });
         }
 
+        function handleWeekSelection(weekKey) {
+            selectedWeekKey = weekKey;
+            const wordsInWeek = wordData[weekKey];
 
-        // 모드 설정 함수
+            if (wordsInWeek.length === 0) {
+                contentDisplay.innerHTML = `<p class="text-center text-gray-500 pt-16">선택한 주차에 단어가 없습니다. 스크립트에서 단어를 추가해주세요.</p>`;
+                weekActionsContainer.classList.add('hidden');
+                pagination.classList.add('hidden');
+                initialMessage.classList.add('hidden');
+                return;
+            }
+            
+            currentWords = wordsInWeek;
+            currentPage = 1;
+            
+            initialMessage.classList.add('hidden');
+            weekActionsContainer.classList.remove('hidden');
+            
+            updateUnitButtons();
+            setMode('list');
+        }
+
+        function updateUnitButtons() {
+            unitTestSelection.innerHTML = '';
+            const wordsInWeek = wordData[selectedWeekKey];
+            if (wordsInWeek.length === 0) {
+                return;
+            }
+
+            const unitCount = Math.ceil(wordsInWeek.length / 30);
+            for (let i = 0; i < unitCount; i++) {
+                const start = i * 30 + 1;
+                const end = Math.min((i + 1) * 30, wordsInWeek.length);
+
+                const btnEngKor = document.createElement('button');
+                btnEngKor.dataset.start = start;
+                btnEngKor.dataset.end = end;
+                btnEngKor.dataset.mode = 'test-eng-kor';
+                btnEngKor.className = 'btn unit-btn bg-white text-green-600 font-semibold py-2 px-3 border border-green-500 rounded-md shadow-sm hover:bg-green-50 text-sm';
+                btnEngKor.textContent = `Words ${start}-${end} (영→한)`;
+                unitTestSelection.appendChild(btnEngKor);
+
+                const btnKorEng = document.createElement('button');
+                btnKorEng.dataset.start = start;
+                btnKorEng.dataset.end = end;
+                btnKorEng.dataset.mode = 'test-kor-eng';
+                btnKorEng.className = 'btn unit-btn bg-white text-teal-600 font-semibold py-2 px-3 border border-teal-500 rounded-md shadow-sm hover:bg-teal-50 text-sm';
+                btnKorEng.textContent = `Words ${start}-${end} (한→영)`;
+                unitTestSelection.appendChild(btnKorEng);
+            }
+        }
+
         function setMode(mode) {
             currentMode = mode;
-            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('btn-active'));
-            document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('btn-active');
+            if (weekActionsContainer.offsetParent !== null) {
+                 document.querySelectorAll('.mode-btn').forEach(btn => {
+                    if (btn.dataset.mode === mode) btn.classList.add('btn-active');
+                    else btn.classList.remove('btn-active');
+                });
+            }
 
             if (mode === 'list') {
                 renderList();
             } else {
+                testableWords = [...currentWords]; 
                 pagination.classList.add('hidden');
                 renderTest();
             }
         }
 
-        // 상세 정보 HTML 생성 함수
         function createDetailHtml(word) {
             let html = `<div class="text-sm space-y-2 text-left text-gray-700">`;
             if (word.pronunciation) html += `<p><strong>발음:</strong> ${word.pronunciation}</p>`;
-            if (word.synonyms) html += `<p><strong>동의어:</strong> ${word.synonyms}</p>`;
-            if (word.antonyms) html += `<p><strong>반의어:</strong> ${word.antonyms}</p>`;
-            if (word.related) html += `<p><strong>관련어:</strong> ${word.related}</p>`;
             if (word.example) html += `<p class="mt-2 pt-2 border-t"><strong>예문:</strong> <span class="italic">${word.example}</span></p>`;
             html += `</div>`;
             return html;
         }
 
-        // 단어 목록 렌더링
         function renderList() {
             contentDisplay.innerHTML = '';
             const startIndex = (currentPage - 1) * wordsPerPage;
@@ -1422,7 +1505,7 @@
                 wordCard.innerHTML = `
                     <div class="summary flex justify-between items-center">
                         <div>
-                            <span class="text-lg font-semibold text-gray-800">${word.english}</span>
+                            <span class="text-lg font-semibold text-gray-800">${word.id}. ${word.english}</span>
                             <span class="text-md text-gray-600 ml-4">${word.korean.split(',')[0]}</span>
                         </div>
                         <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -1438,9 +1521,8 @@
             updatePagination();
         }
 
-        // 페이지네이션 업데이트
         function updatePagination() {
-            if (!currentWords || currentWords.length === 0) {
+            if (!currentWords || currentWords.length === 0 || currentMode !== 'list') {
                 pagination.classList.add('hidden');
                 return;
             }
@@ -1457,22 +1539,26 @@
             }
         }
 
-        // 테스트 렌더링
         function renderTest() {
-            pickRandomWord();
+            currentTestWord = pickRandomTestWord();
             let question, answer;
 
             if (!currentTestWord) {
-                contentDisplay.innerHTML = `<p class="text-center text-gray-500">선택한 주차에 단어가 없습니다.</p>`;
+                contentDisplay.innerHTML = `
+                    <div class="text-center text-gray-600 pt-16">
+                        <h3 class="text-2xl font-bold text-green-600">테스트 완료!</h3>
+                        <p class="mt-2">선택한 범위의 모든 단어를 학습했습니다.</p>
+                    </div>
+                `;
                 return;
             }
 
             if (currentMode === 'test-eng-kor') {
-                question = currentTestWord.english;
+                question = `${currentTestWord.id}. ${currentTestWord.english}`;
                 answer = currentTestWord.korean;
-            } else { // test-kor-eng
+            } else {
                 question = currentTestWord.korean;
-                answer = currentTestWord.english;
+                answer = `${currentTestWord.id}. ${currentTestWord.english}`;
             }
 
             contentDisplay.innerHTML = `
@@ -1485,17 +1571,15 @@
                             <div id="test-details" class="hidden w-full mt-4 p-4 bg-gray-100 rounded-lg"></div>
                         </div>
                     </div>
-                    <button id="next-question-btn" class="btn mt-6 bg-green-500 text-white font-bold py-3 px-8 rounded-full hover:bg-green-600">다음 문제</button>
+                    <button id="next-question-btn" class="btn mt-6 bg-green-500 text-white font-bold py-3 px-8 rounded-full hover:bg-green-600">다음 문제 (${testableWords.length}개 남음)</button>
                 </div>
             `;
             
             document.getElementById('show-answer-btn').addEventListener('click', () => {
                 const answerArea = document.getElementById('answer-area');
                 const testDetails = document.getElementById('test-details');
-                
                 answerArea.querySelector('button').classList.add('hidden');
                 answerArea.insertAdjacentHTML('afterbegin', `<p class="text-2xl font-semibold text-green-600 break-words">${answer}</p>`);
-                
                 testDetails.innerHTML = createDetailHtml(currentTestWord);
                 testDetails.classList.remove('hidden');
             });
@@ -1503,18 +1587,16 @@
             document.getElementById('next-question-btn').addEventListener('click', renderTest);
         }
 
-        // 무작위 단어 선택
-        function pickRandomWord() {
-            if (currentWords && currentWords.length > 0) {
-               currentTestWord = currentWords[Math.floor(Math.random() * currentWords.length)];
-            } else {
-               currentTestWord = null;
+        function pickRandomTestWord() {
+            if (!testableWords || testableWords.length === 0) {
+                return null;
             }
+            const randomIndex = Math.floor(Math.random() * testableWords.length);
+            const [word] = testableWords.splice(randomIndex, 1);
+            return word;
         }
 
-        // 앱 시작
         init();
-
     </script>
 </body>
 </html>

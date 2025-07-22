@@ -1313,6 +1313,7 @@
                 { english: 'experiment', korean: '실험, 실험하다', pronunciation: '[ikspérəmənt]', related: 'experimental 실험적인', synonyms: 'trial', example: 'The fact that humans benefit cannot be used to justify using animals in research any more than it can be used to justify experimenting on other humans.' }
             ]
         };
+
         // 상태 변수
         let allWords = [];
         let selectedWeekKey = null;
@@ -1598,6 +1599,9 @@
         function createDetailHtml(word) {
             let html = `<div class="text-sm space-y-2 text-left text-gray-700">`;
             if (word.pronunciation) html += `<p><strong>발음:</strong> ${word.pronunciation}</p>`;
+            if (word.synonyms) html += `<p><strong>동의어:</strong> ${word.synonyms}</p>`;
+            if (word.antonyms) html += `<p><strong>반의어:</strong> ${word.antonyms}</p>`;
+            if (word.related) html += `<p><strong>관련어:</strong> ${word.related}</p>`;
             if (word.example) html += `<p class="mt-2 pt-2 border-t"><strong>예문:</strong> <span class="italic">${word.example}</span></p>`;
             html += `</div>`;
             return html;
